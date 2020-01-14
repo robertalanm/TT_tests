@@ -11,24 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+import sys
+ttpath = os.path.abspath('..')
+sys.path.append(ttpath)
+from abc import ABCMeta, abstractmethod
 
-
-from abc import abstractmethod
-
-from tensortrade import Component
 from tensortrade.trades import Trade
 
 
-class SlippageModel(Component):
+class SlippageModel(object, metaclass=ABCMeta):
     """A model for simulating slippage on an exchange trade."""
-
-    registered_name = "slippage"
 
     def __init__(self):
         pass
 
     @abstractmethod
-    def adjust_trade(self, trade: Trade, **kwargs) -> Trade:
+    def fill_order(self, trade: Trade, **kwargs) -> Trade:
         """Simulate slippage on a trade ordered on a specific exchange.
 
         Arguments:
@@ -36,7 +35,7 @@ class SlippageModel(Component):
             **kwargs: Any other arguments necessary for the model.
 
         Returns:
-            A filled `Trade` with the `price` and `size` adjusted for slippage.
+            A filled `Trade` with the `price` and `amount` adjusted for slippage.
         """
 
         raise NotImplementedError()

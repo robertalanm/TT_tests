@@ -11,12 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
+import sys
+ttpath = os.path.abspath('..')
+sys.path.append(ttpath)
+import os
+import json
 
 import pandas as pd
 import numpy as np
 
-from typing import Callable
+from abc import ABCMeta, abstractmethod
+from typing import Union, Callable, List, Dict
 
 from tensorforce.agents import Agent
 from tensorforce.execution import Runner
@@ -28,7 +34,7 @@ from tensortrade.strategies import TradingStrategy
 class TensorforceTradingStrategy(TradingStrategy):
     """A trading strategy capable of self tuning, training, and evaluating with Tensorforce."""
 
-    def __init__(self, environment: 'TradingEnvironment', agent: any, max_episode_timesteps: int, agent_kwargs: any = {}, **kwargs):
+    def __init__(self, environment: 'TradingEnvironment', agent_spec: any, save_best_agent: bool = True, **kwargs):
         """
         Arguments:
             environment: A `TradingEnvironment` instance for the agent to trade within.
@@ -36,55 +42,20 @@ class TensorforceTradingStrategy(TradingStrategy):
             save_best_agent (optional): The runner will automatically save the best agent
             kwargs (optional): Optional keyword arguments to adjust the strategy.
         """
-        self._max_episode_timesteps = max_episode_timesteps
-        self._save_best_agent = kwargs.get('save_best_agent', False)
+        self._max_episode_timesteps = kwargs.get('max_episode_timesteps', False)
 
-        self._environment = environment
-        self._tensorforce_environment = Environment.create(
-            environment='gym',
-            level=environment,
-            max_episode_timesteps=self._max_episode_timesteps
-        )
+        self._environment = Environment.create(
+            environment='gym', level=environment, max_episode_timesteps=self._max_episode_timesteps)
 
-        self._agent = Agent.create(agent=agent,
-                                   environment=self._tensorforce_environment,
-                                   max_episode_timesteps=max_episode_timesteps,
-                                   **agent_kwargs)
+        self._agent = Agent.create(agent=agent_spec, environment=self._environment)
 
-        self._runner = Runner(agent=self._agent,
-                              environment=self._tensorforce_environment,
-                              save_best_agent=self._save_best_agent)
-
-    @property
-    def environment(self) -> 'TradingEnvironment':
-        """The `TradingEnvironment` being traded by the learning agent."""
-        return self._environment
-
-    @environment.setter
-    def environment(self, environment: 'TradingEnvironment'):
-        self._environment = environment
-        self._tensorforce_environment = Environment.create(
-            environment='gym',
-            level=environment,
-            max_episode_timesteps=self._max_episode_timesteps
-        )
-
-        self._runner = Runner(agent=self._agent,
-                              environment=self._tensorforce_environment,
-                              save_best_agent=self._save_best_agent)
+        self._runner = Runner(agent=self._agent, environment=self._environment,
+                              save_best_agent=save_best_agent)
 
     @property
     def agent(self) -> Agent:
         """A Tensorforce `Agent` instance that will learn the strategy."""
         return self._agent
-
-    @agent.setter
-    def agent(self, agent: any):
-        self._agent = Agent.create(agent=agent, environment=self._tensorforce_environment)
-
-        self._runner = Runner(agent=self._agent,
-                              environment=self._tensorforce_environment,
-                              save_best_agent=self._save_best_agent)
 
     @property
     def max_episode_timesteps(self) -> int:
@@ -105,7 +76,7 @@ class TensorforceTradingStrategy(TradingStrategy):
         """
         self._agent = Agent.load(directory, filename=filename)
 
-        self._runner = Runner(agent=self._agent, environment=self._tensorforce_environment)
+        self._runner = Runner(agent=self._agent, environment=self._environment)
 
     def save_agent(self, directory: str, filename: str = None, append_timestep: bool = False):
         """Serialize the learning agent to a file for restoring later.
@@ -132,12 +103,7 @@ class TensorforceTradingStrategy(TradingStrategy):
     def tune(self, steps: int = None, episodes: int = None, callback: Callable[[pd.DataFrame], bool] = None) -> pd.DataFrame:
         raise NotImplementedError
 
-    def run(self,
-            steps: int = None,
-            episodes: int = None,
-            render_mode: str = None,
-            evaluation: bool = False,
-            episode_callback: Callable[[pd.DataFrame], bool] = None) -> pd.DataFrame:
+    def run(self, steps: int = None, episodes: int = None, evaluation: bool = True, episode_callback: Callable[[pd.DataFrame], bool] = None) -> pd.DataFrame:
         self._runner.run(evaluation=evaluation,
                          num_timesteps=steps,
                          num_episodes=episodes,
@@ -145,8 +111,7 @@ class TensorforceTradingStrategy(TradingStrategy):
 
         n_episodes = self._runner.episodes
         n_timesteps = self._runner.timesteps
-        avg_reward = np.mean(self._runner.episode_rewards) \
-            if self._runner.episodes > 0 else self._runner.episode_reward
+        avg_reward = np.mean(self._runner.episode_rewards)
 
         print("Finished running strategy.")
         print("Total episodes: {} ({} timesteps).".format(n_episodes, n_timesteps))
@@ -154,4 +119,4 @@ class TensorforceTradingStrategy(TradingStrategy):
 
         self._runner.close()
 
-        return self._environment.portfolio.performance
+        return self._environment.environment._exchange._performance

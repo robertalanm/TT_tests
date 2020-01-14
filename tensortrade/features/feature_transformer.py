@@ -11,28 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
+import sys
+ttpath = os.path.abspath('..')
+sys.path.append(ttpath)
 import pandas as pd
 
+from gym import Space
 from typing import List, Union
 from abc import ABCMeta, abstractmethod
 
-from tensortrade import Component
 
-
-class FeatureTransformer(Component, metaclass=ABCMeta):
+class FeatureTransformer(object, metaclass=ABCMeta):
     """An abstract feature transformer for use within feature pipelines."""
 
-    registered_name = "features"
-
-    def __init__(self, columns: Union[List[str], str, None] = None, inplace: bool = True, **kwargs):
-        """
-        Arguments:
-            columns (optional): A list of column names to normalize.
-            inplace (optional): If `False`, a new column will be added to the output for each input column.
-        """
-        self.columns = self.default('columns', columns)
-        self._inplace = self.default('inplace', inplace)
+    def __init__(self, *args, **kwargs):
+        pass
 
     @property
     def columns(self) -> List[str]:
@@ -50,11 +44,25 @@ class FeatureTransformer(Component, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+    def transform_space(self, input_space: Space, column_names: List[str]) -> Space:
+        """Get the transformed output space for a given input space.
+
+        Args:
+            input_space: A `gym.Space` matching the shape of the pipeline's input.
+            column_names: A list of all column names in the input data frame.
+
+        Returns:
+            A `gym.Space` matching the shape of the pipeline's output.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def transform(self, X: pd.DataFrame, input_space: Space) -> pd.DataFrame:
         """Transform the data set and return a new data frame.
 
         Arguments:
             X: The set of data to transform.
+            input_space: A `gym.Space` matching the shape of the pipeline's input.
 
         Returns:
             A transformed data frame.

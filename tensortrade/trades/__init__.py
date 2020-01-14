@@ -1,1 +1,3 @@
-from .trade import Trade, TradeSide, TradeType, FutureTradeType
+from .trade import Trade
+from .trade_type import TradeType
+from .trade_type import FutureTradeType

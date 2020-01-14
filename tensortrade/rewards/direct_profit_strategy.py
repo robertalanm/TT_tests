@@ -1,7 +1,4 @@
-'''
-Copyright 2020 Robert Myers, Romary Labs
-'''
-
+#Written by Songhao Li, HUATAI Securities
 import os
 import sys
 ttpath = os.path.abspath('..')

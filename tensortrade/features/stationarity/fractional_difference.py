@@ -14,11 +14,17 @@
 #
 # Reference Source: Marcos Lopez De Prado - Advances in Financial Machine Learning
 #                   Chapter 5 (Pg. 82) - Fractionally Differentiated Features
+import os
+import sys
+ttpath = os.path.abspath('..')
+sys.path.append(ttpath)
 
 import pandas as pd
 import numpy as np
 
-from typing import Union, List
+from gym import Space
+from copy import copy
+from typing import Union, List, Tuple
 
 from tensortrade.features.feature_transformer import FeatureTransformer
 
@@ -29,19 +35,43 @@ class FractionalDifference(FeatureTransformer):
     def __init__(self,
                  columns: Union[List[str], str, None] = None,
                  difference_order: float = 0.5,
-                 difference_threshold: float = 0.1,
+                 difference_threshold: float = 1e-1,
                  inplace: bool = True):
         """
         Arguments:
             columns (optional): A list of column names to difference.
             difference_order (optional): The fractional difference order. Defaults to 0.5.
-            difference_threshold (optional): The fractional difference threshold. Defaults to 0.1.
             inplace (optional): If `False`, a new column will be added to the output for each input column.
         """
-        super().__init__(columns=columns, inplace=inplace)
+        self.columns = columns
 
         self._difference_order = difference_order
         self._difference_threshold = difference_threshold
+        self._inplace = inplace
+
+        self.reset()
+
+    def reset(self):
+        self._history = None
+
+    def transform_space(self, input_space: Space, column_names: List[str]) -> Space:
+        if self._inplace:
+            return input_space
+
+        output_space = copy(input_space)
+        columns = self.columns or column_names
+
+        shape_x, *shape_y = input_space.shape
+        output_space.shape = (shape_x + len(columns), *shape_y)
+
+        for column in columns:
+            column_index = column_names.index(column)
+            low, high = input_space.low[column_index], input_space.high[column_index]
+
+            output_space.low = np.append(output_space.low - output_space.high, low)
+            output_space.high = np.append(output_space.high, high)
+
+        return output_space
 
     def _difference_weights(self, size: int):
         weights = [1.0]
@@ -80,21 +110,27 @@ class FractionalDifference(FeatureTransformer):
             diff_series[index] = np.dot(
                 weights[-(current_index + 1):, :].T, curr_series.loc[:index])[0]
 
-        return diff_series.fillna(method='bfill').fillna(0)
+        return diff_series
 
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, X: pd.DataFrame, input_space: Space) -> pd.DataFrame:
+        if self._history is None:
+            self._history = X.copy()
+        else:
+            self._history = self._history.append(X, ignore_index=True)
+
+        if len(self._history) > len(X):
+            self._history = self._history.iloc[-len(X) + 1:]
+
         if self.columns is None:
-            self.columns = list(X.select_dtypes('number').columns)
+            self.columns = list(X.columns)
 
         for column in self.columns:
-            diffed_series = self._fractional_difference(X[column])
+            diffed_series = self._fractional_difference(self._history[column])
 
-            if not self._inplace:
-                column = '{}_diff_{}'.format(column, self._difference_order)
-
-            args = {}
-            args[column] = diffed_series
-
-            X = X.assign(**args)
+            if self._inplace:
+                X[column] = diffed_series.fillna(method='bfill')
+            else:
+                column_name = '{}_diff_{}'.format(column, self._difference_order)
+                X[column_name] = diffed_series.fillna(method='bfill')
 
         return X.iloc[-len(X):]

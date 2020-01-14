@@ -1,3 +1,6 @@
+# Written by Songhao Li, Huatai Securities
+# 11/25/2019
+
 import numpy as np
 from typing import Union
 from gym.spaces import Discrete
