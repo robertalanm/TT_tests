@@ -1,6 +1,7 @@
 from .reward_scheme import RewardScheme
 from .simple_profit import SimpleProfit
 from .risk_adjusted_returns import RiskAdjustedReturns
+from .position_reward import PositionReward
 
 _registry = {
     'simple': SimpleProfit,

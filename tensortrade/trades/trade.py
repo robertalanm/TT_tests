@@ -18,6 +18,39 @@ from enum import Enum
 from tensortrade.base import TimedIdentifiable
 
 
+
+class FutureTradeType(Enum):
+"""A trade type for future trades. Created by Robert Myers"""
+
+    SELL = 0
+    HOLD = 1
+    BUY = 2
+
+    @property
+    def is_hold(self) -> bool:
+        """
+        Returns:
+            Whether the trade type is non-existent (i.e. hold).
+        """
+        return self == FutureTradeType.HOLD
+
+    @property
+    def is_buy(self) -> bool:
+        """
+        Returns:
+            Whether the trade type is a buy offer.
+        """
+        return self == FutureTradeType.BUY
+
+    @property
+    def is_sell(self) -> bool:
+        """
+        Returns:
+            Whether the trade type is a sell offer.
+        """
+        return self == FutureTradeType.SELL
+
+
 class TradeType(Enum):
     LIMIT = 'limit'
     MARKET = 'market'

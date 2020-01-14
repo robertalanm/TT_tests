@@ -1,10 +1,12 @@
 from .action_scheme import ActionScheme
 from .dynamic_orders import DynamicOrders
 from .managed_risk_orders import ManagedRiskOrders
-
+from .future_action_strategy import FutureActionStrategy
+from .future_position_strategy import FuturePositionStrategy
 
 _registry = {
     'dynamic': DynamicOrders,
+    'future': FutureActionStrategy(),
     'managed-risk': ManagedRiskOrders,
 }
 
